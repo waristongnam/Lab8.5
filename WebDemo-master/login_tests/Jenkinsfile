@@ -1,0 +1,57 @@
+pipeline {
+    agent any
+
+    environment {
+        // Set the Docker image name (you can replace it with your custom Docker Hub repo if you build and push your image)
+        DOCKER_IMAGE = 'python:3.11-slim'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout the Git repository
+                git url: 'https://github.com/waristongnam/Lab8.5.git', branch: 'main'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build Docker image with the Dockerfile
+                    docker.build("robot-framework-build", "-f Dockerfile .")
+                }
+            }
+        }
+
+        stage('Run Robot Framework Tests') {
+            steps {
+                script {
+                    // Run Robot Framework tests inside the container
+                    docker.image("robot-framework-build").inside {
+                        // If the tests are in the repository, provide the path to your test files
+                        sh 'robot UAT_Lab7_001.robot UAT_Lab7_002.robot'
+                    }
+                }
+            }
+        }
+
+        stage('Publish Results') {
+            steps {
+                // Publish Robot Framework results to Jenkins (assuming XML output is generated)
+                robotPublisher(
+                    outputPath: 'output',
+                    outputFileName: 'output.xml',
+                    reportFileName: 'report.html',
+                    logFileName: 'log.html'
+                )
+            }
+        }
+    }
+
+    post {
+        always {
+            // Clean up after build (remove Docker container/image if necessary)
+            cleanWs()
+        }
+    }
+}
